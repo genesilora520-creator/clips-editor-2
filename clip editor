@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edición Amelo – Grabador de clips</title>
+<style>
+  :root{--bg:#0f1117;--card:#1a1d27;--line:#2a2e3d;--txt:#eef0f6;--mut:#9aa0b4;--acc:#ff3d6e;--acc2:#7c5cff;--ok:#2ecc71}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+  header{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{margin:0;font-size:20px}
+  header span{color:var(--mut);font-size:13px}
+  .badge{display:none;align-items:center;gap:6px;background:#3a1020;color:#ff7a98;padding:4px 10px;border-radius:99px;font-size:13px;font-weight:600}
+  .badge.on{display:inline-flex}
+  .dot{width:9px;height:9px;border-radius:50%;background:#ff3d6e;animation:p 1s infinite}
+  @keyframes p{50%{opacity:.25}}
+  main{max-width:1200px;margin:0 auto;padding:18px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px}
+  @media(max-width:900px){main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h2{margin:0 0 12px;font-size:15px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+  .stage{position:relative;background:#000;border-radius:10px;overflow:hidden;display:flex;justify-content:center;align-items:center;min-height:240px}
+  .stage canvas{max-width:100%;max-height:480px;display:block}
+  .stage .hint{position:absolute;color:var(--mut);font-size:14px;text-align:center;padding:20px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  button,.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:600;font-size:14px;cursor:pointer;color:#fff;background:#2a2e3d;text-decoration:none;display:inline-block}
+  button:hover,.btn:hover{filter:brightness(1.15)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .rec{background:var(--acc)}
+  .pri{background:var(--acc2)}
+  .yt{background:#e62117}.tt{background:#111;border:1px solid #444}.fb{background:#1877f2}
+  label{display:block;font-size:12px;color:var(--mut);margin:12px 0 4px}
+  input,select{width:100%;background:#12141c;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:9px 10px;font-size:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .clips{display:grid;gap:12px;max-height:620px;overflow:auto}
+  .clip{display:grid;grid-template-columns:120px 1fr;gap:10px;background:#12141c;border:1px solid var(--line);border-radius:10px;padding:8px}
+  .clip video{width:120px;height:80px;object-fit:cover;background:#000;border-radius:6px}
+  .clip .meta{font-size:12px;color:var(--mut)}
+  .clip .meta b{color:var(--txt);font-size:13px}
+  .clip .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .clip .acts a{padding:5px 9px;font-size:12px;background:var(--ok);border-radius:7px;color:#062;font-weight:700;text-decoration:none}
+  .clip .acts button{padding:5px 9px;font-size:12px}
+  .empty{color:var(--mut);font-size:14px;text-align:center;padding:24px}
+  iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;margin-top:10px;background:#000}
+  .note{font-size:12px;color:var(--mut);margin-top:10px;line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎬 Edición Amelo</h1>
+  <span>Graba tu pantalla y corta clips automáticos para YouTube, TikTok y Facebook</span>
+  <span class="badge" id="badge"><i class="dot"></i><b id="timer">00:00</b> · Clip <b id="clipNum">1</b></span>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>1 · Fuente y grabación</h2>
+      <div class="stage">
+        <canvas id="cv" width="1280" height="720"></canvas>
+        <div class="hint" id="hint">Pulsa “Elegir pantalla” y selecciona la pestaña o ventana donde está el video en vivo (marca “Compartir audio”).</div>
+      </div>
+      <div class="row">
+        <button class="pri" id="btnShare">🖥️ Elegir pantalla / pestaña</button>
+        <button class="rec" id="btnRec" disabled>⏺ Empezar a grabar</button>
+        <button id="btnCut" disabled>✂️ Cortar clip ahora</button>
+        <button id="btnStop" disabled>⏹ Parar</button>
+      </div>
+      <p class="note">Mientras graba, la página corta sola un clip nuevo cada X segundos (por defecto 60 s) y los deja listos abajo para descargar. Puedes dejarla grabando en segundo plano.</p>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>2 · Link del video (YouTube, etc.)</h2>
+      <label>Pega aquí el link</label>
+      <input id="ytLink" placeholder="https://www.youtube.com/watch?v=...">
+      <div class="row">
+        <button id="btnOpen">↗ Abrir en otra pestaña</button>
+        <button id="btnEmbed">▶ Verlo aquí mismo</button>
+      </div>
+      <div id="embedBox"></div>
+      <p class="note">Truco: abre el link en otra pestaña, vuelve aquí, pulsa “Elegir pantalla / pestaña” y escoge esa pestaña. O ponlo “aquí mismo” y comparte esta misma pestaña.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>Ajustes de edición</h2>
+      <div class="grid2">
+        <div>
+          <label>Duración de cada clip</label>
+          <select id="dur">
+            <option value="15">15 segundos</option>
+            <option value="30">30 segundos</option>
+            <option value="60" selected>1 minuto</option>
+            <option value="90">1:30 min</option>
+            <option value="120">2 minutos</option>
+            <option value="180">3 minutos</option>
+          </select>
+        </div>
+        <div>
+          <label>Formato de salida</label>
+          <select id="fmt">
+            <option value="h">Horizontal 16:9 (YouTube / Facebook)</option>
+            <option value="v">Vertical 9:16 (TikTok / Reels / Shorts)</option>
+            <option value="s">Cuadrado 1:1 (Facebook / Instagram)</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Vertical / cuadrado</label>
+          <select id="fit">
+            <option value="blur">Video completo con fondo difuminado</option>
+            <option value="crop">Recortar al centro (llena pantalla)</option>
+          </select>
+        </div>
+        <div>
+          <label>Calidad</label>
+          <select id="qual">
+            <option value="3500000">Normal</option>
+            <option value="6000000" selected>Alta</option>
+            <option value="9000000">Máxima</option>
+          </select>
+        </div>
+      </div>
+      <label>Título / marca encima del video (opcional)</label>
+      <input id="ovTxt" placeholder="Ej: La Casa de Alofoke 3 – Resumen">
+      <div class="grid2">
+        <div>
+          <label>Posición del texto</label>
+          <select id="ovPos"><option value="bottom">Abajo</option><option value="top">Arriba</option></select>
+        </div>
+        <div>
+          <label>Número de clip</label>
+          <select id="ovNum"><option value="1">Mostrar “Parte N”</option><option value="0">No mostrar</option></select>
+        </div>
+      </div>
+      <label>Prefijo del nombre de archivo</label>
+      <input id="prefix" value="alofoke3">
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>Clips listos <span id="count" style="color:var(--txt)"></span></h2>
+      <div class="row" style="margin:0 0 12px">
+        <button class="pri" id="btnAll" disabled>⬇ Descargar todos</button>
+        <button id="btnClear" disabled>🗑 Borrar lista</button>
+      </div>
+      <div class="clips" id="clips"><div class="empty">Aún no hay clips. Empieza a grabar.</div></div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>3 · Subir</h2>
+      <div class="row" style="margin-top:0">
+        <a class="btn yt" target="_blank" rel="noopener" href="https://studio.youtube.com">YouTube Studio</a>
+        <a class="btn tt" target="_blank" rel="noopener" href="https://www.tiktok.com/upload">TikTok</a>
+        <a class="btn fb" target="_blank" rel="noopener" href="https://www.facebook.com/">Facebook</a>
+      </div>
+      <p class="note">Descarga el clip y súbelo en cada plataforma (la subida automática requiere cuentas con API). Sube solo contenido que tengas derecho a publicar: respeta los derechos de autor y las normas de cada plataforma.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const vid = document.createElement('video');
+  vid.muted = true; vid.playsInline = true;
+
+  let stream = null, outStream = null, recorder = null, chunks = [];
+  let recording = false, clipIdx = 1, clipStart = 0, recStart = 0;
+  let clipTimeout = null, uiTimer = null, clips = [];
+  let mime = '', ext = 'webm';
+
+  // Worker como reloj: no se frena cuando la pestaña está en segundo plano
+  const worker = new Worker(URL.createObjectURL(new Blob([
+    'let t=null;onmessage=e=>{clearInterval(t);if(e.data==="start")t=setInterval(()=>postMessage(1),1000/30);}'
+  ], {type:'text/javascript'})));
+  worker.onmessage = draw;
+
+  function pickMime(){
+    const opts = [
+      ['video/mp4;codecs=avc1.42E01E,mp4a.40.2','mp4'],
+      ['video/mp4','mp4'],
+      ['video/webm;codecs=vp9,opus','webm'],
+      ['video/webm;codecs=vp8,opus','webm'],
+      ['video/webm','webm']
+    ];
+    for (const [m,e] of opts) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) { mime=m; ext=e; return; }
+  }
+  pickMime();
+
+  function size(){
+    const f = $('fmt').value;
+    return f==='v' ? [720,1280] : f==='s' ? [1080,1080] : [1280,720];
+  }
+  function applySize(){
+    const [w,h] = size();
+    if (cv.width!==w || cv.height!==h){ cv.width=w; cv.height=h; }
+  }
+
+  function draw(){
+    applySize();
+    const W = cv.width, H = cv.height;
+    ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+    if (vid.videoWidth){
+      const vw = vid.videoWidth, vh = vid.videoHeight;
+      const cover = Math.max(W/vw, H/vh), contain = Math.min(W/vw, H/vh);
+      const mode = $('fit').value;
+      const isH = $('fmt').value==='h';
+      if (isH || mode==='crop'){
+        const s = isH ? contain : cover;
+        const dw = vw*s, dh = vh*s;
+        ctx.drawImage(vid,(W-dw)/2,(H-dh)/2,dw,dh);
+      } else {
+        // fondo difuminado + video completo al centro
+        ctx.save();
+        ctx.filter = 'blur(28px) brightness(.55)';
+        const dw = vw*cover*1.1, dh = vh*cover*1.1;
+        ctx.drawImage(vid,(W-dw)/2,(H-dh)/2,dw,dh);
+        ctx.restore();
+        const dw2 = vw*contain, dh2 = vh*contain;
+        ctx.drawImage(vid,(W-dw2)/2,(H-dh2)/2,dw2,dh2);
+      }
+    }
+    // Texto superpuesto
+    let txt = $('ovTxt').value.trim();
+    if ($('ovNum').value==='1' && recording) txt = (txt ? txt+' · ' : '') + 'Parte ' + clipIdx;
+    if (txt){
+      const fs = Math.round(W*0.04);
+      ctx.font = '700 '+fs+'px system-ui,Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tw = Math.min(ctx.measureText(txt).width + fs, W-20);
+      const y = $('ovPos').value==='top' ? fs*1.6 : H - fs*1.8;
+      ctx.fillStyle = 'rgba(0,0,0,.6)';
+      ctx.fillRect((W-tw)/2, y-fs*0.8, tw, fs*1.6);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(txt, W/2, y, W-40);
+    }
+  }
+
+  // ---- Pantalla ----
+  $('btnShare').onclick = async () => {
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30}, audio:true});
+    } catch(e){ return alert('No se pudo compartir la pantalla: '+e.message); }
+    vid.srcObject = stream; await vid.play();
+    $('hint').style.display = 'none';
+    $('btnRec').disabled = false;
+    worker.postMessage('start');
+    stream.getVideoTracks()[0].addEventListener('ended', () => { if (recording) stopAll(); stream=null; $('btnRec').disabled=true; $('hint').style.display=''; $('hint').textContent='La pantalla dejó de compartirse. Elígela otra vez.'; });
+  };
+
+  // ---- Grabación por clips ----
+  function startClip(){
+    const canvasStream = cv.captureStream(30);
+    outStream = new MediaStream([...canvasStream.getVideoTracks(), ...stream.getAudioTracks()]);
+    chunks = [];
+    const opts = {videoBitsPerSecond: +$('qual').value};
+    if (mime) opts.mimeType = mime;
+    recorder = new MediaRecorder(outStream, opts);
+    const myIdx = clipIdx, myFmt = $('fmt').value, myStart = Date.now();
+    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = () => {
+      const secs = (Date.now()-myStart)/1000;
+      if (secs >= 2 && chunks.length) addClip(new Blob(chunks,{type:mime||'video/webm'}), myIdx, myFmt, secs);
+    };
+    recorder.start(1000);
+    clipStart = Date.now();
+    clearTimeout(clipTimeout);
+    clipTimeout = setTimeout(cutNow, (+$('dur').value)*1000);
+    $('clipNum').textContent = clipIdx;
+  }
+  function cutNow(){
+    if (!recording) return;
+    recorder.stop(); clipIdx++; startClip();
+  }
+  function stopAll(){
+    recording = false;
+    clearTimeout(clipTimeout); clearInterval(uiTimer);
+    if (recorder && recorder.state!=='inactive') recorder.stop();
+    $('badge').classList.remove('on');
+    $('btnRec').disabled = !stream; $('btnStop').disabled = true; $('btnCut').disabled = true;
+    $('fmt').disabled = false;
+  }
+
+  $('btnRec').onclick = () => {
+    if (!stream) return;
+    recording = true; clipIdx = 1; recStart = Date.now();
+    $('btnRec').disabled = true; $('btnStop').disabled = false; $('btnCut').disabled = false;
+    $('badge').classList.add('on'); $('fmt').disabled = true;
+    startClip();
+    uiTimer = setInterval(() => {
+      const s = Math.floor((Date.now()-recStart)/1000);
+      $('timer').textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+    }, 500);
+  };
+  $('btnCut').onclick = cutNow;
+  $('btnStop').onclick = stopAll;
+
+  // ---- Lista de clips ----
+  const fmtName = {h:'horizontal',v:'vertical',s:'cuadrado'};
+  function addClip(blob, idx, f, secs){
+    const url = URL.createObjectURL(blob);
+    const name = `${$('prefix').value||'clip'}-${String(idx).padStart(3,'0')}-${fmtName[f]}.${ext}`;
+    clips.push({url,name,blob});
+    render();
+  }
+  function render(){
+    const box = $('clips');
+    $('count').textContent = clips.length ? '('+clips.length+')' : '';
+    $('btnAll').disabled = $('btnClear').disabled = !clips.length;
+    if (!clips.length){ box.innerHTML = '<div class="empty">Aún no hay clips. Empieza a grabar.</div>'; return; }
+    box.innerHTML = '';
+    clips.slice().reverse().forEach(c => {
+      const d = document.createElement('div'); d.className='clip';
+      d.innerHTML = `<video src="${c.url}" controls preload="metadata"></video>
+        <div class="meta"><b>${c.name}</b><br>${(c.blob.size/1048576).toFixed(1)} MB
+        <div class="acts"><a href="${c.url}" download="${c.name}">⬇ Descargar</a><button data-n="${c.name}">Quitar</button></div></div>`;
+      d.querySelector('button').onclick = () => { clips = clips.filter(x=>x.name!==c.name); URL.revokeObjectURL(c.url); render(); };
+      box.appendChild(d);
+    });
+  }
+  $('btnAll').onclick = async () => {
+    for (const c of clips){
+      const a = document.createElement('a'); a.href=c.url; a.download=c.name; document.body.appendChild(a); a.click(); a.remove();
+      await new Promise(r=>setTimeout(r,600));
+    }
+  };
+  $('btnClear').onclick = () => { if(confirm('¿Borrar todos los clips de la lista?')){ clips.forEach(c=>URL.revokeObjectURL(c.url)); clips=[]; render(); } };
+
+  // ---- Link YouTube ----
+  function ytId(u){
+    const m = u.match(/(?:youtu\.be\/|v=|embed\/|live\/|shorts\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+  $('btnOpen').onclick = () => { const u=$('ytLink').value.trim(); if(u) window.open(u,'_blank','noopener'); };
+  $('btnEmbed').onclick = () => {
+    const id = ytId($('ytLink').value.trim());
+    if (!id) return alert('Pega un link válido de YouTube.');
+    $('embedBox').innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  };
+
+  draw();
+  window.addEventListener('beforeunload', e => { if (recording) { e.preventDefault(); e.returnValue=''; } });
+})();
+</script>
+</body>
+</html>
